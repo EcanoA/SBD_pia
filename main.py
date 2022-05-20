@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 import pyodbc
 import logging 
+from datetime import datetime
 
 ##### Ventanas extras #####
 # Ventana para agregar boletos
@@ -32,9 +33,11 @@ def v_agregarboletos():
     agb_ent5 = tk.Entry(v_agregar1)
     prueba = ttk.Combobox(v_agregar1,
                         state = "readonly",
-                        values = ["prueba","Prueba2"])
+                        values = [])
 
     prueba.pack()
+
+
 
 # Ventana para agregar eventos
 def v_agregareventos():
@@ -76,7 +79,6 @@ def v_consultarboletos():
                                         +server+';DATABASE='+bd+';UID='+usuario+';PWD='+contrasena)
 
             logging.info("...Conexion exitosa")
-
         except Exception as e:
             logging.error("Ha ocurrido un error al intentar la conexion: " + str(e))
             quit()
@@ -109,12 +111,12 @@ def v_consultarboletos():
         consulta = consulta.replace("@y",apellido)
 
         try:    
-
+            logging.info("Consultado base de datos...")
             cursor.execute(consulta)
+            logging.info("...Base de datos consultada con exito")
             filas = cursor.fetchone() # traer resultados
         except:
             logging.error("Ha ocurrido un error al consultar boletos")
-            print("algo va mal")
             quit()
 
         # imprimir resultados
@@ -163,6 +165,7 @@ def v_consultarboletos():
     cb_ent1.place(x=290,y=90,width=70,height=25)
     cb_btn1.place(x=350,y=230,width=156,height=30)
 
+
 # Ventana para cosultar eventos
 def v_consultareventos():
     
@@ -173,6 +176,8 @@ def v_consultareventos():
         bd = 'BOLETERIA'
         usuario = 'CODIGO'
         contrasena = '123'
+        fecha = datetime.today().strftime('%d/%m/%Y')
+        eventos = list()
 
         logging.info("Intentando conexion a base de datos...")
 
@@ -182,7 +187,6 @@ def v_consultareventos():
                                         +server+';DATABASE='+bd+';UID='+usuario+';PWD='+contrasena)
 
             logging.info("...Conexion exitosa")
-
         except Exception as e:
             logging.error("Ha ocurrido un error al intentar la conexion: " + str(e))
             quit()
@@ -191,23 +195,50 @@ def v_consultareventos():
         cursor = conexion.cursor()
 
         consulta = """declare @date varchar(50)
-        Set @date =GETDATE()
-        SELECT Ev.nombre, TE.TipoEvento, Ev.fecha, D.Disponibilidad, L.Ciudad, L.Estado, L.Pais
-        FROM Evento Ev
-        left join TipoEvento TE
-        ON Ev.idTipoEvento = TE.idTipoEvento
-        left join Disponibilidad D
-        ON Ev.idEvento = D.idEvento
-        left join Localidad L
-        ON Ev.idLocalidad = L.idLocalidad
-        where Ev.fecha >= @date"""
-        cursor.execute(consulta)
-        filas = cursor.fetchall() # traer resultados
-        print(filas)
+Set @date = @x
+SELECT Ev.nombre, TE.TipoEvento, Ev.fecha, D.Disponibilidad, L.Ciudad, L.Estado, L.Pais
+FROM Evento Ev
+left join TipoEvento TE
+ON Ev.idTipoEvento = TE.idTipoEvento
+left join Disponibilidad D
+ON Ev.idEvento = D.idEvento
+left join Localidad L
+ON Ev.idLocalidad = L.idLocalidad
+where Ev.fecha >= @date"""
+        consulta = consulta.replace("@x",fecha)
+        print(consulta)
 
-        # imprimir resultados
-        for fila in filas:
-            print("Evento",filas)
+        try:
+            cursor.execute(consulta)
+            filas = cursor.fetchall() # traer resultados
+        except:
+            logging.error("Ha ocurrido un error consultando los boletos")
+
+        if filas == None:
+            messagebox.showinfo("Eventos registrados","No se tiene registro de ningun evento")
+        else:
+            # imprimir resultados
+            for fila in filas:
+                evento = """Nombre evento: @evento
+Tipo de evento: @tipo 
+Fecha del evento: @fecha
+Disponibilidad: @dis
+Lugar del evento: @municipio, @estado, @pais
+\n"""
+                evento = evento.replace("@evento",str(fila[0]))
+                evento = evento.replace("@tipo",str(fila[1]))
+                evento = evento.replace("@fecha",str(fila[2]))
+                evento = evento.replace("@dis",str(fila[3]))
+                evento = evento.replace("@municipio",str(fila[4]))
+                evento = evento.replace("@estado",str(fila[5]))
+                evento = evento.replace("@pais",str(fila[6]))
+
+            eventos.append(evento)
+        f = open("Eventos registrados.txt",'w')
+        for i in eventos:
+            f.write(i)
+        f.close()
+        messagebox.showinfo("Eventos registrados","Se han guardado los eventos activos en un documento con nombre Eventos activos")
 
     ## Definicion ventana ##
     logging.info("Abriendo ventana cosultar eventos")
@@ -223,6 +254,7 @@ def v_consultareventos():
                         command=consultaeventos)
     ce_btn1.place(x=360,y=340,width=156,height=30)
 
+ 
 # Cerrar ventana
 def salir():
     vprincipal.destroy()
